@@ -65,15 +65,17 @@ void CudaCalcSteinhardtForceKernel::initialize(const System& system, const Stein
     bool useDouble = cu.getUseDoublePrecision();
     int elementSize = (useDouble ? sizeof(double) : sizeof(float));
     int numParticles = force.getParticles().size();
+    float cutoffDistance=force.getCutoffDistance();
     if (numParticles == 0)
         numParticles = system.getNumParticles();
-    referencePos.initialize(cu, system.getNumParticles(), 4*elementSize, "referencePos");
+
     particles.initialize<int>(cu, numParticles, "particles");
+    cutoffD.initialize<float>(cu,1,"cutoffD") //I'm not sure how this line should actually look
     buffer.initialize(cu, 13, elementSize, "buffer");
     recordParameters(force);
     info = new ForceInfo(force);
     cu.addForce(info);
-
+    cutoffD.upload(cutoffDistance);
     // Create the kernels.
 
     CUmodule module = cu.createModule(CudaKernelSources::vectorOps+CudaKernelSources::steinhardt);
@@ -88,29 +90,13 @@ void CudaCalcSteinhardtForceKernel::recordParameters(const SteinhardtForce& forc
     if (particleVec.size() == 0)
         for (int i = 0; i < cu.getNumAtoms(); i++)
             particleVec.push_back(i);
-    vector<Vec3> centeredPositions = force.getReferencePositions();
-    Vec3 center;
-    for (int i : particleVec)
-        center += centeredPositions[i];
-    center /= particleVec.size();
-    for (Vec3& p : centeredPositions)
-        p -= center;
+
 
     // Upload them to the device.
 
     particles.upload(particleVec);
-    vector<double4> pos;
-    for (Vec3 p : centeredPositions)
-        pos.push_back(make_double4(p[0], p[1], p[2], 0));
-    referencePos.upload(pos, true);
 
-    // Record the sum of the norms of the reference positions.
 
-    sumNormRef = 0.0;
-    for (int i : particleVec) {
-        Vec3 p = centeredPositions[i];
-        sumNormRef += p.dot(p);
-    }
 }
 
 double CudaCalcSteinhardtForceKernel::execute(ContextImpl& context, bool includeForces, bool includeEnergy) {

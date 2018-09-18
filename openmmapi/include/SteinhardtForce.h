@@ -75,6 +75,14 @@ public:
     const std::vector<int>& getParticles() const {
         return particles;
     }
+
+
+    /**
+     * Get the cutoff distance used in computing the steinhardt parameter
+     */
+    const std::float& getCutoffDistance() const {
+        return cutoffDistance;
+    }
     /**
      * Set the indices of the particles to use when computing the RMSD.  If this
      * is empty, all particles in the system will be used.
