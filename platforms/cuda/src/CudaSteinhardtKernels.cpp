@@ -111,6 +111,15 @@ double CudaCalcSteinhardtForceKernel::executeImpl(ContextImpl& context) {
 
     int numParticles = particles.getSize();
     int blockSize = 256;
+
+
+
+    for(int i=0; i<numParticles, i++){
+      for(int j=0; j<numParticles, j++){
+        vec = r[i]-r[j];
+        
+      }
+    }
     void* args1[] = {&numParticles, &cu.getPosq().getDevicePointer(), &referencePos.getDevicePointer(),
             &particles.getDevicePointer(), &buffer.getDevicePointer()};
     cu.executeKernel(kernel1, args1, blockSize, blockSize, blockSize*sizeof(REAL));
