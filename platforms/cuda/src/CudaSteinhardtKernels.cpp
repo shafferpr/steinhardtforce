@@ -79,8 +79,8 @@ void CudaCalcSteinhardtForceKernel::initialize(const System& system, const Stein
     // Create the kernels.
 
     CUmodule module = cu.createModule(CudaKernelSources::vectorOps+CudaKernelSources::steinhardt);
-    kernel1 = cu.getKernel(module, "computeRMSDPart1");
-    kernel2 = cu.getKernel(module, "computeRMSDForces");
+    kernel1 = cu.getKernel(module, "computeSteinhardt");
+    kernel2 = cu.getKernel(module, "computeSteinhardtForces");
 }
 
 void CudaCalcSteinhardtForceKernel::recordParameters(const SteinhardtForce& force) {
@@ -120,7 +120,7 @@ double CudaCalcSteinhardtForceKernel::executeImpl(ContextImpl& context) {
         
       }
     }
-    void* args1[] = {&numParticles, &cu.getPosq().getDevicePointer(), &referencePos.getDevicePointer(),
+    void* args1[] = {&numParticles, &cu.getPosq().getDevicePointer(), 
             &particles.getDevicePointer(), &buffer.getDevicePointer()};
     cu.executeKernel(kernel1, args1, blockSize, blockSize, blockSize*sizeof(REAL));
 

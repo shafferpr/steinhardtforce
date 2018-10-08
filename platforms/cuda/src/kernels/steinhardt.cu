@@ -1,4 +1,4 @@
-// This file contains kernels to compute the q6 steinhardt parameter and its gradient using the algorithm described
+// This file contains kernels to compute the q6 steinhardt parameter and its gradient
 
 
 /**
@@ -25,18 +25,126 @@ __device__ real reduceValue(real value, volatile real* temp) {
 /**
  * Perform the first step of computing the RMSD.  This is executed as a single work group.
  */
-extern "C" __global__ void computeRMSDPart1(int numParticles, const real4* __restrict__ posq, const real4* __restrict__ referencePos,
-         const int* __restrict__ particles, real* buffer) {
+extern "C" __global__ void computeSteinhardt(int numParticles, const real4* __restrict__ posq,
+         const int* __restrict__ particles, const real* __restrict__ cutoff, real* buffer) {
     extern __shared__ volatile real temp[];
 
     // Compute the center of the particle positions.
 
     real3 center = make_real3(0);
-    for (int i = threadIdx.x; i < numParticles; i += blockDim.x)
+    for (int i = threadIdx.x; i < numParticles; i += blockDim.x){
         center += trimTo3(posq[particles[i]]);
+    }
     center.x = reduceValue(center.x, temp)/numParticles;
     center.y = reduceValue(center.y, temp)/numParticles;
     center.z = reduceValue(center.z, temp)/numParticles;
+
+    real M[numParticles];
+    real N[numParticles];
+
+    for(int i=0; i < numParticles; i++){
+        M[i]=0;
+        N[i]=0;
+    }
+
+    //for (int i = 0; i < numParticles; i++)
+    for(int i=threadId.x; i<numParticles; i+=blockDim.x){
+        real3 positioni=trimTo3(posq[particles[i]]);
+        //for(int j=threadId.x; j<numParticles; j+= blockDim.x)
+        for(int j=0; j<numParticles; j++){
+            if( j!=i ){
+                real3 positionj=trimTo3(posq[particles[j]]);
+                real3 rij= make_real3(positioni.x-positionj.x, positioni.y-positionj.y, positioni.z-positionj.z);    
+                APPLY_PERIODIC_TO_DELTA(rij)
+                real rij_norm=pow(rij.x*rij.x + rij.y*rij.y + rij.z*rij.z,0.5);
+                real switch_ij=(1-pow((rij_norm-5)/1,6))/(1-pow((rij_norm-5)/1,12));
+                N[i] += switch_ij;
+                for(int k=0; k<numParticles; k++){
+                    if (k != i){
+                        real3 positionk=trimTo3(posq[particles[k]]);
+                        real3 rik= make_real3(positioni.x-positionk.x, positioni.y-positionk.y, positioni.z-positionk.z);               
+                        APPLY_PERIODIC_TO_DELTA(rik) 
+                        real rik_norm=pow(rik.x*rik.x + rik.y*rik.y + rik.z*rik.z,0.5);
+                        real switch_ik=(1-pow((rik_norm-5)/1,6))/(1-pow((rik_norm-5)/1,12));
+                        real rdot = rij.x*rik.x + rij.y*rik.y + rij.z*rik.z;
+                        real P6=(231*pow(rdot,6.0)-315*pow(rdot,4.0)+105*pow(rdot,2.0)-5)/16;
+                        M[i] += P6*switch_ik*switch_ij;
+                    }
+                }
+            }
+        }
+    }
+
+    real Q6_tot=0;
+    for(int i=threadId.x; i<numParticles; i++){
+        Q6_tot += pow(M[i],0.5)/N[i]
+    }
+
+    Q6_tot=Q6_tot*pow(4*3.14159/13,0.5)/numParticles;
+    Q6_tot=reduceValue(Q6_tot,temp);
+
+    real F[numParticles][3];
+    for(int i=0; i< numParticles; i++){
+        for(int j=0; j<2; j++){
+            F[i][j]=0.0;
+        }
+    }
+
+    for(int i=0; i<numParticles; i++){
+        real3 positioni=trimTo3(posq[particles[i]]);
+        //for(int j=threadId.x; j<numParticles; j+=blockDim.x){
+        for(int j=0; j<numParticles; j++){
+            if( j!=i ){
+                real3 positionj=trimTo3(posq[particles[j]]);
+                real3 rij= make_real3(positioni.x-positionj.x, positioni.y-positionj.y, positioni.z-positionj.z);
+                APPLY_PERIODIC_TO_DELTA(rij)
+                real rij_norm=pow(rij.x*rij.x + rij.y*rij.y + rij.z*rij.z,0.5);
+                real3 delta_rij_norm=-rij/(2*rij_norm);
+                real switch_ij_numerator=(1-pow((rij_norm-5)/1,6));
+                real switch_ij_denominator=(1-pow((rij_norm-5)/1,12));
+                real switch_ij=switch_ij_numerator/switch_ij_denominator;
+                real delta_switch_ij=(6*pow((rij_norm-5)/1,5)*switch_ij_denominator-12*pow((rij_norm-5)/1,11)*switch_ij_numerator)/(switch_ij_denominator*switch_ij_denominator);
+                for(int k=0; k<numParticles; k++){
+                    if(k!=i){
+                        real3 positionk=trimTo3(posq[particles[k]]);
+                        real3 rik= make_real3(positioni.x-positionk.x, positioni.y-positionk.y, positioni.z-positionk.z);
+                        APPLY_PERIODIC_TO_DELTA(rik)
+                        real rik_norm=pow(rik.x*rik.x + rik.y*rik.y + rik.z*rik.z,0.5);
+                        real3 delta_rik_norm=-rik/(2*rik_norm);
+                        real switch_ik_numerator=(1-pow((rik_norm-5)/1,6));
+                        real switch_ik_denominator=(1-pow((rik_norm-5)/1,12));
+                        real switch_ik=switch_ik_numerator/switch_ik_denominator;
+                        //real switch_ik=(1-pow((rik_norm-5)/1,6))/(1-pow((rik_norm-5)/1,12));
+                        real delta_switch_ik=(6*pow((rik_norm-5)/1,5)*switch_ik_denominator-12*pow((rik_norm-5)/1,11)*switch_ik_numerator)/(switch_ik_denominator*switch_ik_denominator);
+
+                        real rdot = rij.x*rik.x + rij.y*rik.y + rij.z*rik.z;
+                        real P6=(231*pow(rdot,6.0)-315*pow(rdot,4.0)+105*pow(rdot,2.0)-5)/16;
+                        real delta_P6=(1386*pow(rdot,5.0)-1260*pow(rdot,3)+210*rdot)/16;
+                        F[i]=delta_switch_ij*switch_ik*P6*delta_rij_norm + switch_ij*delta_switch_ik*P6*delta_rik_norm + switch_ij*switch_ik*delta_P6*delta_rij_norm;//this very last term is not quite right
+                        F[j]=-delta_switch_ij*switch_ik*P6*delta_rij_norm + switch_ij*switch_ik*delta_P6*delta_rij_norm;
+                        F[k]=-switch_ij*delta_switch_ik*P6*delta_rik_norm + switch_ij*switch_ik*delta_P6*delta_rij_norm;
+                    }
+                }
+            }
+        }
+    }
+                        
+
+
+
+    for (int i = blockDim.x*blockIdx.x+threadIdx.x; i < numParticles; i += blockDim.x*gridDim.x) {
+        int index = particles[i];
+        real3 pos = trimTo3(posq[index]) - center;
+        real3 refPos = trimTo3(referencePos[index]);
+        real3 rotatedRef = make_real3(buffer[0]*refPos.x + buffer[3]*refPos.y + buffer[6]*refPos.z,
+                                      buffer[1]*refPos.x + buffer[4]*refPos.y + buffer[7]*refPos.z,
+                                      buffer[2]*refPos.x + buffer[5]*refPos.y + buffer[8]*refPos.z);
+        real3 force = (rotatedRef-pos)*scale;
+        atomicAdd(&forceBuffers[index], static_cast<unsigned long long>((long long) (force.x*0x100000000)));
+        atomicAdd(&forceBuffers[index+paddedNumAtoms], static_cast<unsigned long long>((long long) (force.y*0x100000000)));
+        atomicAdd(&forceBuffers[index+2*paddedNumAtoms], static_cast<unsigned long long>((long long) (force.z*0x100000000)));
+    }
+
 
     // Compute the correlation matrix.
 
