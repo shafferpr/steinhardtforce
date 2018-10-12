@@ -23,7 +23,7 @@ __device__ real reduceValue(real value, volatile real* temp) {
 }
 
 /**
- * Perform the first step of computing the RMSD.  This is executed as a single work group.
+ * Perform the first step of computing q6.  This is executed as a single work group.
  */
 extern "C" __global__ void computeSteinhardt(int numParticles, const real4* __restrict__ posq,
          const int* __restrict__ particles, const real* __restrict__ cutoff, real* buffer) {
@@ -54,7 +54,7 @@ extern "C" __global__ void computeSteinhardt(int numParticles, const real4* __re
         for(int j=0; j<numParticles; j++){
             if( j!=i ){
                 real3 positionj=trimTo3(posq[particles[j]]);
-                real3 rij= make_real3(positioni.x-positionj.x, positioni.y-positionj.y, positioni.z-positionj.z);    
+                real3 rij= make_real3(positioni.x-positionj.x, positioni.y-positionj.y, positioni.z-positionj.z);
                 APPLY_PERIODIC_TO_DELTA(rij)
                 real rij_norm=pow(rij.x*rij.x + rij.y*rij.y + rij.z*rij.z,0.5);
                 real switch_ij=(1-pow((rij_norm-5)/1,6))/(1-pow((rij_norm-5)/1,12));
@@ -62,8 +62,8 @@ extern "C" __global__ void computeSteinhardt(int numParticles, const real4* __re
                 for(int k=0; k<numParticles; k++){
                     if (k != i){
                         real3 positionk=trimTo3(posq[particles[k]]);
-                        real3 rik= make_real3(positioni.x-positionk.x, positioni.y-positionk.y, positioni.z-positionk.z);               
-                        APPLY_PERIODIC_TO_DELTA(rik) 
+                        real3 rik= make_real3(positioni.x-positionk.x, positioni.y-positionk.y, positioni.z-positionk.z);
+                        APPLY_PERIODIC_TO_DELTA(rik)
                         real rik_norm=pow(rik.x*rik.x + rik.y*rik.y + rik.z*rik.z,0.5);
                         real switch_ik=(1-pow((rik_norm-5)/1,6))/(1-pow((rik_norm-5)/1,12));
                         real rdot = rij.x*rik.x + rij.y*rik.y + rij.z*rik.z;
@@ -128,7 +128,7 @@ extern "C" __global__ void computeSteinhardt(int numParticles, const real4* __re
             }
         }
     }
-                        
+
 
 
 
