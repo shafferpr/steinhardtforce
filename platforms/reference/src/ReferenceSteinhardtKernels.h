@@ -69,9 +69,9 @@ public:
      */
     void copyParametersToContext(OpenMM::ContextImpl& context, const SteinhardtForce& force);
 private:
-    int numBonds;
-    std::vector<int> particle1, particle2;
-    std::vector<double> length, k;
+    float cutoffDistance;
+    std::vector<int> particles;    
+
 };
 
 } // namespace SteinhardtPlugin

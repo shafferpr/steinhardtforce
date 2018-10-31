@@ -32,41 +32,43 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.                                     *
  * -------------------------------------------------------------------------- */
 
-#include "ForceImpl.h"
-#include "openmm/RMSDForce.h"
+#include "SteinhardtForce.h"
+#include "openmm/internal/ForceImpl.h"
 #include "openmm/Kernel.h"
 #include <utility>
 #include <map>
+#include <set>
 #include <string>
 
-namespace OpenMM {
+namespace SteinhardtPlugin{
 
+  class System;
 /**
  * This is the internal implementation of RMSDForce.
  */
 
-class SteinhardtForceImpl : public ForceImpl {
+  class OPENMM_EXPORT_STEINHARDT SteinhardtForceImpl : public OpenMM::ForceImpl {
 public:
     SteinhardtForceImpl(const SteinhardtForce& owner);
     ~SteinhardtForceImpl();
-    void initialize(ContextImpl& context);
+    void initialize(OpenMM::ContextImpl& context);
     const SteinhardtForce& getOwner() const {
         return owner;
     }
-    void updateContextState(ContextImpl& context, bool& forcesInvalid) {
+    void updateContextState(OpenMM::ContextImpl& context, bool& forcesInvalid) {
         // This force field doesn't update the state directly.
     }
-    double calcForcesAndEnergy(ContextImpl& context, bool includeForces, bool includeEnergy, int groups);
+    double calcForcesAndEnergy(OpenMM::ContextImpl& context, bool includeForces, bool includeEnergy, int groups);
     std::map<std::string, double> getDefaultParameters() {
         return std::map<std::string, double>(); // This force doesn't define any parameters.
     }
     std::vector<std::string> getKernelNames();
-    void updateParametersInContext(ContextImpl& context);
+    void updateParametersInContext(OpenMM::ContextImpl& context);
 private:
     const SteinhardtForce& owner;
-    Kernel kernel;
+    OpenMM::Kernel kernel;
 };
 
-} // namespace OpenMM
+} // namespace SteinhardtPlugin
 
 #endif /*OPENMM_STEINHARDTFORCEIMPL_H_*/

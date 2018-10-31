@@ -29,53 +29,49 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.                                     *
  * -------------------------------------------------------------------------- */
 
-#include "ExampleForce.h"
+#include "SteinhardtForce.h"
 #include "openmm/Platform.h"
 #include "openmm/internal/AssertionUtilities.h"
 #include "openmm/serialization/XmlSerializer.h"
 #include <iostream>
 #include <sstream>
 
-using namespace ExamplePlugin;
+using namespace SteinhardtPlugin;
 using namespace OpenMM;
 using namespace std;
 
-extern "C" void registerExampleSerializationProxies();
+extern "C" void registerSteinhardtSerializationProxies();
 
 void testSerialization() {
     // Create a Force.
 
-    ExampleForce force;
-    force.addBond(0, 1, 1.0, 2.0);
-    force.addBond(0, 2, 2.0, 2.1);
-    force.addBond(2, 3, 3.0, 2.2);
-    force.addBond(5, 1, 4.0, 2.3);
 
+    vector<int> particles;
+    for (int i = 0; i < 5; i++)
+        particles.push_back(i*i);
+
+    double cutoffDistance=5;
+    SteinhardtForce force(particles,cutoffDistance);    
     // Serialize and then deserialize it.
 
     stringstream buffer;
-    XmlSerializer::serialize<ExampleForce>(&force, "Force", buffer);
-    ExampleForce* copy = XmlSerializer::deserialize<ExampleForce>(buffer);
+    XmlSerializer::serialize<SteinhardtForce>(&force, "Force", buffer);
+    SteinhardtForce* copy = XmlSerializer::deserialize<SteinhardtForce>(buffer);
 
     // Compare the two forces to see if they are identical.
 
-    ExampleForce& force2 = *copy;
-    ASSERT_EQUAL(force.getNumBonds(), force2.getNumBonds());
-    for (int i = 0; i < force.getNumBonds(); i++) {
-        int a1, a2, b1, b2;
-        double da, db, ka, kb;
-        force.getBondParameters(i, a1, a2, da, ka);
-        force2.getBondParameters(i, b1, b2, db, kb);
-        ASSERT_EQUAL(a1, b1);
-        ASSERT_EQUAL(a2, b2);
-        ASSERT_EQUAL(da, db);
-        ASSERT_EQUAL(ka, kb);
-    }
+    SteinhardtForce& force2 = *copy;
+    ASSERT_EQUAL(force.getForceGroup(), force2.getForceGroup());
+    ASSERT_EQUAL(force.getParticles().size(), force2.getParticles().size());
+    for (int i = 0; i < force.getParticles().size(); i++)
+        ASSERT_EQUAL(force.getParticles()[i], force2.getParticles()[i]);
+    ASSERT_EQUAL(force.getCutoffDistance(),force2.getCutoffDistance());
+    
 }
 
 int main() {
     try {
-        registerExampleSerializationProxies();
+        registerSteinhardtSerializationProxies();
         testSerialization();
     }
     catch(const exception& e) {

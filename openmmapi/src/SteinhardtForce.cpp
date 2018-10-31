@@ -29,9 +29,12 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.                                     *
  * -------------------------------------------------------------------------- */
 
-#include "openmm/SteinhardtForce.h"
-#include "openmm/internal/SteinhardtForceImpl.h"
+#include "SteinhardtForce.h"
+#include "internal/SteinhardtForceImpl.h"
+#include "openmm/OpenMMException.h"
+#include "openmm/internal/AssertionUtilities.h"
 
+using namespace SteinhardtPlugin;
 using namespace OpenMM;
 using namespace std;
 

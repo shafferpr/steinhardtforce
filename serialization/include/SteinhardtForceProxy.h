@@ -1,8 +1,8 @@
-#ifndef OPENMM_EXAMPLE_FORCE_PROXY_H_
-#define OPENMM_EXAMPLE_FORCE_PROXY_H_
+#ifndef OPENMM_STEINHARDT_FORCE_PROXY_H_
+#define OPENMM_STEINHARDT_FORCE_PROXY_H_
 
 /* -------------------------------------------------------------------------- *
- *                                OpenMMExample                                 *
+ *                                OpenMMSteinhardt                                 *
  * -------------------------------------------------------------------------- *
  * This is part of the OpenMM molecular simulation toolkit originating from   *
  * Simbios, the NIH National Center for Physics-Based Simulation of           *
@@ -32,22 +32,22 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.                                     *
  * -------------------------------------------------------------------------- */
 
-#include "internal/windowsExportExample.h"
+#include "internal/windowsExportSteinhardt.h"
 #include "openmm/serialization/SerializationProxy.h"
 
 namespace OpenMM {
 
 /**
- * This is a proxy for serializing ExampleForce objects.
+ * This is a proxy for serializing SteinhardtForce objects.
  */
 
-class OPENMM_EXPORT_EXAMPLE ExampleForceProxy : public SerializationProxy {
+class OPENMM_EXPORT_STEINHARDT SteinhardtForceProxy : public SerializationProxy {
 public:
-    ExampleForceProxy();
+    SteinhardtForceProxy();
     void serialize(const void* object, SerializationNode& node) const;
     void* deserialize(const SerializationNode& node) const;
 };
 
 } // namespace OpenMM
 
-#endif /*OPENMM_EXAMPLE_FORCE_PROXY_H_*/
+#endif /*OPENMM_STEINHARDT_FORCE_PROXY_H_*/

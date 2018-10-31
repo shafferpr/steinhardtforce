@@ -1,5 +1,5 @@
-#ifndef EXAMPLE_KERNELS_H_
-#define EXAMPLE_KERNELS_H_
+#ifndef STEINHARDT_KERNELS_H_
+#define STEINHARDT_KERNELS_H_
 
 /* -------------------------------------------------------------------------- *
  *                                   OpenMM                                   *
@@ -32,31 +32,31 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.                                     *
  * -------------------------------------------------------------------------- */
 
-#include "ExampleForce.h"
+#include "SteinhardtForce.h"
 #include "openmm/KernelImpl.h"
 #include "openmm/Platform.h"
 #include "openmm/System.h"
 #include <string>
 
-namespace ExamplePlugin {
+namespace SteinhardtPlugin {
 
 /**
- * This kernel is invoked by ExampleForce to calculate the forces acting on the system and the energy of the system.
+ * This kernel is invoked by SteinhardtForce to calculate the forces acting on the system and the energy of the system.
  */
-class CalcExampleForceKernel : public OpenMM::KernelImpl {
+class CalcSteinhardtForceKernel : public OpenMM::KernelImpl {
 public:
     static std::string Name() {
-        return "CalcExampleForce";
+        return "CalcSteinhardtForce";
     }
-    CalcExampleForceKernel(std::string name, const OpenMM::Platform& platform) : OpenMM::KernelImpl(name, platform) {
+    CalcSteinhardtForceKernel(std::string name, const OpenMM::Platform& platform) : OpenMM::KernelImpl(name, platform) {
     }
     /**
      * Initialize the kernel.
      * 
      * @param system     the System this kernel will be applied to
-     * @param force      the ExampleForce this kernel will be used for
+     * @param force      the SteinhardtForce this kernel will be used for
      */
-    virtual void initialize(const OpenMM::System& system, const ExampleForce& force) = 0;
+    virtual void initialize(const OpenMM::System& system, const SteinhardtForce& force) = 0;
     /**
      * Execute the kernel to calculate the forces and/or energy.
      *
@@ -70,11 +70,11 @@ public:
      * Copy changed parameters over to a context.
      *
      * @param context    the context to copy parameters to
-     * @param force      the ExampleForce to copy the parameters from
+     * @param force      the SteinhardtForce to copy the parameters from
      */
-    virtual void copyParametersToContext(OpenMM::ContextImpl& context, const ExampleForce& force) = 0;
+    virtual void copyParametersToContext(OpenMM::ContextImpl& context, const SteinhardtForce& force) = 0;
 };
 
-} // namespace ExamplePlugin
+} // namespace SteinhardtPlugin
 
-#endif /*EXAMPLE_KERNELS_H_*/
+#endif /*STEINHARDT_KERNELS_H_*/

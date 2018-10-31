@@ -32,12 +32,13 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.                                     *
  * -------------------------------------------------------------------------- */
 
-#include "Force.h"
-#include "Vec3.h"
+#include "openmm/Context.h"
+#include "openmm/Force.h"
+#include "openmm/Vec3.h"
 #include <vector>
-#include "internal/windowsExport.h"
+#include "internal/windowsExportSteinhardt.h"
 
-namespace OpenMM {
+namespace SteinhardtPlugin {
 
 /**
  * This is a force whose energy equals the root mean squared deviation (RMSD)
@@ -52,7 +53,7 @@ namespace OpenMM {
  * in the system.
  */
 
-class OPENMM_EXPORT STEINHARDTForce : public Force {
+  class OPENMM_EXPORT_STEINHARDT SteinhardtForce : public OpenMM::Force {
 public:
     /**
      * Create an RMSDForce.
@@ -66,11 +67,10 @@ public:
      *                            particles in the system will be used.
      */
     explicit SteinhardtForce(const std::vector<int>& particles=std::vector<int>(),
-                       double cutoffDistance);
+                       double cutoffDistance=5);
 
     /**
-     * Get the indices of the particles to use when computing the RMSD.  If this
-     * is empty, all particles in the system will be used.
+     * Get the indices of the particles to use when computing the Steinhardt parameter
      */
     const std::vector<int>& getParticles() const {
         return particles;
@@ -80,7 +80,7 @@ public:
     /**
      * Get the cutoff distance used in computing the steinhardt parameter
      */
-    const std::float& getCutoffDistance() const {
+    const float& getCutoffDistance() const {
         return cutoffDistance;
     }
     /**
@@ -100,7 +100,7 @@ public:
      * and setParticles() to modify this object's parameters, then call updateParametersInContext()
      * to copy them over to the Context.
      */
-    void updateParametersInContext(Context& context);
+    void updateParametersInContext(OpenMM::Context& context);
     /**
      * Returns whether or not this force makes use of periodic boundary
      * conditions.
@@ -111,10 +111,10 @@ public:
         return false;
     }
 protected:
-    ForceImpl* createImpl() const;
+    OpenMM::ForceImpl* createImpl() const;
 private:
     std::vector<int> particles;
-    std::double cutoffDistance;
+    double cutoffDistance;
 };
 
 } // namespace OpenMM

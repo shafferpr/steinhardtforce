@@ -29,13 +29,17 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.                                     *
  * -------------------------------------------------------------------------- */
 
+
+#include "internal/SteinhardtForceImpl.h"
+#include "SteinhardtKernels.h"
 #include "openmm/OpenMMException.h"
 #include "openmm/internal/ContextImpl.h"
-#include "openmm/internal/SteinhardtForceImpl.h"
-#include "openmm/kernels.h"
+#include <cmath>
+#include <map>
 #include <set>
 #include <sstream>
 
+using namespace SteinhardtPlugin;
 using namespace OpenMM;
 using namespace std;
 
@@ -49,8 +53,8 @@ void SteinhardtForceImpl::initialize(ContextImpl& context) {
     kernel = context.getPlatform().createKernel(CalcSteinhardtForceKernel::Name(), context);
 
     // Check for errors in the specification of particles.
-    const System& system = context.getSystem();
-    int numParticles = system.getNumParticles();
+    //const System& system = context.getSystem();
+    int numParticles = context.getSystem().getNumParticles();
     //if (owner.getReferencePositions().size() != numParticles)
         //throw OpenMMException("SteinhardtForce: Number of reference positions does not equal number of particles in the System");
     set<int> particles;

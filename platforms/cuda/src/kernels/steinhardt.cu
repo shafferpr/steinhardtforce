@@ -114,7 +114,6 @@ extern "C" __global__ void computeSteinhardt(int numParticles, const real4* __re
                         real switch_ik_numerator=(1-pow((rik_norm-5)/1,6));
                         real switch_ik_denominator=(1-pow((rik_norm-5)/1,12));
                         real switch_ik=switch_ik_numerator/switch_ik_denominator;
-                        //real switch_ik=(1-pow((rik_norm-5)/1,6))/(1-pow((rik_norm-5)/1,12));
                         real delta_switch_ik=(6*pow((rik_norm-5)/1,5)*switch_ik_denominator-12*pow((rik_norm-5)/1,11)*switch_ik_numerator)/(switch_ik_denominator*switch_ik_denominator);
 
                         real rdot = rij.x*rik.x + rij.y*rik.y + rij.z*rik.z;
@@ -134,15 +133,9 @@ extern "C" __global__ void computeSteinhardt(int numParticles, const real4* __re
 
     for (int i = blockDim.x*blockIdx.x+threadIdx.x; i < numParticles; i += blockDim.x*gridDim.x) {
         int index = particles[i];
-        real3 pos = trimTo3(posq[index]) - center;
-        real3 refPos = trimTo3(referencePos[index]);
-        real3 rotatedRef = make_real3(buffer[0]*refPos.x + buffer[3]*refPos.y + buffer[6]*refPos.z,
-                                      buffer[1]*refPos.x + buffer[4]*refPos.y + buffer[7]*refPos.z,
-                                      buffer[2]*refPos.x + buffer[5]*refPos.y + buffer[8]*refPos.z);
-        real3 force = (rotatedRef-pos)*scale;
-        atomicAdd(&forceBuffers[index], static_cast<unsigned long long>((long long) (force.x*0x100000000)));
-        atomicAdd(&forceBuffers[index+paddedNumAtoms], static_cast<unsigned long long>((long long) (force.y*0x100000000)));
-        atomicAdd(&forceBuffers[index+2*paddedNumAtoms], static_cast<unsigned long long>((long long) (force.z*0x100000000)));
+        atomicAdd(&forceBuffers[index], static_cast<unsigned long long>((long long) (F[i][0]*0x100000000)));
+        atomicAdd(&forceBuffers[index+paddedNumAtoms], static_cast<unsigned long long>((long long) (F[i][1]*0x100000000)));
+        atomicAdd(&forceBuffers[index+2*paddedNumAtoms], static_cast<unsigned long long>((long long) (F[i][2]*0x100000000)));
     }
 
 

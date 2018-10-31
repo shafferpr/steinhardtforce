@@ -1,5 +1,5 @@
 /* -------------------------------------------------------------------------- *
- *                                OpenMMExample                                 *
+ *                                OpenMMSteinhardt                                 *
  * -------------------------------------------------------------------------- *
  * This is part of the OpenMM molecular simulation toolkit originating from   *
  * Simbios, the NIH National Center for Physics-Based Simulation of           *
@@ -29,44 +29,51 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE.                                     *
  * -------------------------------------------------------------------------- */
 
-#include "ExampleForceProxy.h"
-#include "ExampleForce.h"
+#include "SteinhardtForceProxy.h"
+#include "SteinhardtForce.h"
 #include "openmm/serialization/SerializationNode.h"
 #include <sstream>
 
-using namespace ExamplePlugin;
+using namespace SteinhardtPlugin;
 using namespace OpenMM;
 using namespace std;
 
-ExampleForceProxy::ExampleForceProxy() : SerializationProxy("ExampleForce") {
+SteinhardtForceProxy::SteinhardtForceProxy() : SerializationProxy("SteinhardtForce") {
 }
 
-void ExampleForceProxy::serialize(const void* object, SerializationNode& node) const {
+void SteinhardtForceProxy::serialize(const void* object, SerializationNode& node) const {
     node.setIntProperty("version", 1);
-    const ExampleForce& force = *reinterpret_cast<const ExampleForce*>(object);
-    SerializationNode& bonds = node.createChildNode("Bonds");
-    for (int i = 0; i < force.getNumBonds(); i++) {
-        int particle1, particle2;
-        double distance, k;
-        force.getBondParameters(i, particle1, particle2, distance, k);
-        bonds.createChildNode("Bond").setIntProperty("p1", particle1).setIntProperty("p2", particle2).setDoubleProperty("d", distance).setDoubleProperty("k", k);
-    }
+    const SteinhardtForce& force = *reinterpret_cast<const SteinhardtForce*>(object);
+    node.setIntProperty("forceGroup", force.getForceGroup());
+
+    SerializationNode& particlesNode = node.createChildNode("Particles");
+    for (int i : force.getParticles())
+       particlesNode.createChildNode("Particle").setIntProperty("index", i);
+
+    SerializationNode& cutoffDistanceNode = node.createChildNode("CutoffDistance");
+    cutoffDistanceNode.setDoubleProperty("cutoffDistance",force.getCutoffDistance());
 }
 
-void* ExampleForceProxy::deserialize(const SerializationNode& node) const {
+void* SteinhardtForceProxy::deserialize(const SerializationNode& node) const {
     if (node.getIntProperty("version") != 1)
         throw OpenMMException("Unsupported version number");
-    ExampleForce* force = new ExampleForce();
+    SteinhardtForce* force = NULL;
     try {
-        const SerializationNode& bonds = node.getChildNode("Bonds");
-        for (int i = 0; i < (int) bonds.getChildren().size(); i++) {
-            const SerializationNode& bond = bonds.getChildren()[i];
-            force->addBond(bond.getIntProperty("p1"), bond.getIntProperty("p2"), bond.getDoubleProperty("d"), bond.getDoubleProperty("k"));
-        }
+
+        vector<int> particles;
+	double cutoffDistance;
+        for (auto& particle : node.getChildNode("Particles").getChildren())
+            particles.push_back(particle.getIntProperty("index"));
+	cutoffDistance=node.getChildNode("CutoffDistance").getDoubleProperty("cutoffDistance");
+        force = new SteinhardtForce(particles, cutoffDistance);
+        force->setForceGroup(node.getIntProperty("forceGroup", 0));
+        return force;
+	
     }
     catch (...) {
-        delete force;
-        throw;
+      if (force != NULL)      
+	  delete force;
+      throw;
     }
-    return force;
+
 }
