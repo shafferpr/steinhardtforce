@@ -1,5 +1,5 @@
 #---------------------------------------------------
-# OpenMM STEINHARDT Plugin
+# OpenMM Example Plugin
 #----------------------------------------------------
 
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
@@ -32,7 +32,7 @@ ENDIF(${CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT})
 SET(STEINHARDT_PLUGIN_SOURCE_SUBDIRS openmmapi serialization)
 
 # Set the library name
-SET(STEINHARDT_LIBRARY_NAME SteinhardtForce)
+SET(STEINHARDT_LIBRARY_NAME SteinhardtPlugin)
 SET(SHARED_STEINHARDT_TARGET ${STEINHARDT_LIBRARY_NAME})
 
 # These are all the places to search for header files which are to be part of the API.
