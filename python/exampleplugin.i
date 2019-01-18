@@ -1,4 +1,4 @@
-%module exampleplugin
+%module steinhardtplugin
 
 %import(module="simtk.openmm") "swig/OpenMMSwigHeaders.i"
 %include "swig/typemaps.i"
@@ -16,7 +16,7 @@ namespace std {
 };
 
 %{
-#include "ExampleForce.h"
+#include "SteinhardtForce.h"
 #include "OpenMM.h"
 #include "OpenMMAmoeba.h"
 #include "OpenMMDrude.h"
@@ -29,43 +29,24 @@ import simtk.openmm as mm
 import simtk.unit as unit
 %}
 
-/*
- * Add units to function outputs.
-*/
-%pythonappend ExamplePlugin::ExampleForce::getBondParameters(int index, int& particle1, int& particle2,
-                                                             double& length, double& k) const %{
-    val[2] = unit.Quantity(val[2], unit.nanometer)
-    val[3] = unit.Quantity(val[3], unit.kilojoule_per_mole/unit.nanometer**4)
-%}
 
 
-namespace ExamplePlugin {
 
-class ExampleForce : public OpenMM::Force {
+namespace SteinhardtPlugin {
+
+class SteinhardtForce : public OpenMM::Force {
 public:
-    ExampleForce();
+    SteinhardtForce();
 
-    int getNumBonds() const;
 
-    int addBond(int particle1, int particle2, double length, double k);
 
-    void setBondParameters(int index, int particle1, int particle2, double length, double k);
 
+
+    void setParticles(std::vector<int>& particles);
+    void setCutoffDistance(double distance);
     void updateParametersInContext(OpenMM::Context& context);
 
-    /*
-     * The reference parameters to this function are output values.
-     * Marking them as such will cause swig to return a tuple.
-    */
-    %apply int& OUTPUT {int& particle1};
-    %apply int& OUTPUT {int& particle2};
-    %apply double& OUTPUT {double& length};
-    %apply double& OUTPUT {double& k};
-    void getBondParameters(int index, int& particle1, int& particle2, double& length, double& k) const;
-    %clear int& particle1;
-    %clear int& particle2;
-    %clear double& length;
-    %clear double& k;
+
 };
 
 }

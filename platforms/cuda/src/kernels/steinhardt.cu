@@ -29,15 +29,6 @@ extern "C" __global__ void computeSteinhardt(int numParticles, const real4* __re
          const int* __restrict__ particles, const real* __restrict__ cutoff, real* buffer) {
     extern __shared__ volatile real temp[];
 
-    // Compute the center of the particle positions.
-
-    real3 center = make_real3(0);
-    for (int i = threadIdx.x; i < numParticles; i += blockDim.x){
-        center += trimTo3(posq[particles[i]]);
-    }
-    center.x = reduceValue(center.x, temp)/numParticles;
-    center.y = reduceValue(center.y, temp)/numParticles;
-    center.z = reduceValue(center.z, temp)/numParticles;
 
     real M[numParticles];
     real N[numParticles];

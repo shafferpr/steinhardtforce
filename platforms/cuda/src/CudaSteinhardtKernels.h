@@ -43,15 +43,16 @@ namespace SteinhardtPlugin {
 
   class CudaCalcSteinhardtForceKernel : public CalcSteinhardtForceKernel {
   public:
-      CudaCalcSteinhardtForceKernel(std::string name, const Platform& platform, CudaContext& cu) : CalcSteinhardtForceKernel(name, platform), cu(cu) {
+  CudaCalcSteinhardtForceKernel(std::string name, const OpenMM::Platform& platform, OpenMM::CudaContext& cu, const OpenMM::System& system) : CalcSteinhardtForceKernel(name, platform), cu(cu), system(system), params(NULL) {
       }
+    ~CudaCalcSteinhardtForceKernel();
       /**
        * Initialize the kernel.
        *
        * @param system     the System this kernel will be applied to
        * @param force      the SteinhardtForce this kernel will be used for
        */
-      void initialize(const System& system, const SteinhardtForce& force);
+    void initialize(const OpenMM::System& system, const SteinhardtForce& force);
       /**
        * Record the reference positions and particle indices.
        */
@@ -64,27 +65,30 @@ namespace SteinhardtPlugin {
        * @param includeEnergy  true if the energy should be calculated
        * @return the potential energy due to the force
        */
-      double execute(ContextImpl& context, bool includeForces, bool includeEnergy);
+      double execute(OpenMM::ContextImpl& context, bool includeForces, bool includeEnergy);
       /**
        * This is the internal implementation of execute(), templatized on whether we're
        * using single or double precision.
        */
       template <class REAL>
-      double executeImpl(ContextImpl& context);
+	double executeImpl(OpenMM::ContextImpl& context);
       /**
        * Copy changed parameters over to a context.
        *
        * @param context    the context to copy parameters to
        * @param force      the SteinhardtForce to copy the parameters from
        */
-      void copyParametersToContext(ContextImpl& context, const SteinhardtForce& force);
+      void copyParametersToContext(OpenMM::ContextImpl& context, const SteinhardtForce& force);
   private:
       class ForceInfo;
-      CudaContext& cu;
+      OpenMM::CudaContext& cu;
+      const OpenMM::System& system;
+      OpenMM::CudaArray* params;
       ForceInfo* info;
+      float cutoffDistance;
       double sumNormRef;
-      CudaArray particles;
-      CudaArray buffer;
+      OpenMM::CudaArray particles;
+      OpenMM::CudaArray buffer;
       CUfunction kernel1, kernel2;
   };
 

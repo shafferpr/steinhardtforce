@@ -30,10 +30,12 @@
  * -------------------------------------------------------------------------- */
 
 #include "CudaSteinhardtKernels.h"
+//#include "CudaKernelSources.h"
 #include "CudaSteinhardtKernelSources.h"
 #include "openmm/internal/ContextImpl.h"
 #include "openmm/cuda/CudaBondedUtilities.h"
 #include "openmm/cuda/CudaForceInfo.h"
+#include <set>
 
 using namespace SteinhardtPlugin;
 using namespace OpenMM;
@@ -57,6 +59,7 @@ public:
 private:
     const SteinhardtForce& force;
     set<int> particles;
+    double cutoffDistance;
 };
 
 void CudaCalcSteinhardtForceKernel::initialize(const System& system, const SteinhardtForce& force) {
@@ -65,20 +68,20 @@ void CudaCalcSteinhardtForceKernel::initialize(const System& system, const Stein
     bool useDouble = cu.getUseDoublePrecision();
     int elementSize = (useDouble ? sizeof(double) : sizeof(float));
     int numParticles = force.getParticles().size();
-    float cutoffDistance=force.getCutoffDistance();
+    cutoffDistance=force.getCutoffDistance();
     if (numParticles == 0)
         numParticles = system.getNumParticles();
 
     particles.initialize<int>(cu, numParticles, "particles");
-    cutoffD.initialize<float>(cu,1,"cutoffD") //I'm not sure how this line should actually look
+    //cutoffD.initialize<float>(cu,1,"cutoffD") //I'm not sure how this line should actually look
     buffer.initialize(cu, 13, elementSize, "buffer");
     recordParameters(force);
     info = new ForceInfo(force);
     cu.addForce(info);
-    cutoffD.upload(cutoffDistance);
+    //cutoffD.upload(cutoffDistance);
     // Create the kernels.
 
-    CUmodule module = cu.createModule(CudaKernelSources::vectorOps+CudaKernelSources::steinhardt);
+    CUmodule module = cu.createModule(CudaSteinhardtKernelSources::vectorOps+CudaSteinhardtKernelSources::steinhardt);
     kernel1 = cu.getKernel(module, "computeSteinhardt");
     kernel2 = cu.getKernel(module, "computeSteinhardtForces");
 }
@@ -114,85 +117,20 @@ double CudaCalcSteinhardtForceKernel::executeImpl(ContextImpl& context) {
 
 
 
-    for(int i=0; i<numParticles, i++){
-      for(int j=0; j<numParticles, j++){
-        vec = r[i]-r[j];
-        
-      }
-    }
-    void* args1[] = {&numParticles, &cu.getPosq().getDevicePointer(), 
-            &particles.getDevicePointer(), &buffer.getDevicePointer()};
+
+    void* args1[] = {&numParticles, &cu.getPosq().getDevicePointer(),
+            &particles.getDevicePointer(), &cutoffDistance, &buffer.getDevicePointer()};
     cu.executeKernel(kernel1, args1, blockSize, blockSize, blockSize*sizeof(REAL));
 
-    // Download the results, build the F matrix, and find the maximum eigenvalue
-    // and eigenvector.
-
-    vector<REAL> b;
-    buffer.download(b);
-    Array2D<double> F(4, 4);
-    F[0][0] =  b[0*3+0] + b[1*3+1] + b[2*3+2];
-    F[1][0] =  b[1*3+2] - b[2*3+1];
-    F[2][0] =  b[2*3+0] - b[0*3+2];
-    F[3][0] =  b[0*3+1] - b[1*3+0];
-    F[0][1] =  b[1*3+2] - b[2*3+1];
-    F[1][1] =  b[0*3+0] - b[1*3+1] - b[2*3+2];
-    F[2][1] =  b[0*3+1] + b[1*3+0];
-    F[3][1] =  b[0*3+2] + b[2*3+0];
-    F[0][2] =  b[2*3+0] - b[0*3+2];
-    F[1][2] =  b[0*3+1] + b[1*3+0];
-    F[2][2] = -b[0*3+0] + b[1*3+1] - b[2*3+2];
-    F[3][2] =  b[1*3+2] + b[2*3+1];
-    F[0][3] =  b[0*3+1] - b[1*3+0];
-    F[1][3] =  b[0*3+2] + b[2*3+0];
-    F[2][3] =  b[1*3+2] + b[2*3+1];
-    F[3][3] = -b[0*3+0] - b[1*3+1] + b[2*3+2];
-    JAMA::Eigenvalue<double> eigen(F);
-    Array1D<double> values;
-    eigen.getRealEigenvalues(values);
-    Array2D<double> vectors;
-    eigen.getV(vectors);
-
-    // Compute the RMSD.
-
-    double msd = (sumNormRef+b[9]-2*values[3])/numParticles;
-    if (msd < 1e-20) {
-        // The particles are perfectly aligned, so all the forces should be zero.
-        // Numerical error can lead to NaNs, so just return 0 now.
-        return 0.0;
-    }
-    double rmsd = sqrt(msd);
-    b[9] = rmsd;
-
-    // Compute the rotation matrix.
-
-    double q[] = {vectors[0][3], vectors[1][3], vectors[2][3], vectors[3][3]};
-    double q00 = q[0]*q[0], q01 = q[0]*q[1], q02 = q[0]*q[2], q03 = q[0]*q[3];
-    double q11 = q[1]*q[1], q12 = q[1]*q[2], q13 = q[1]*q[3];
-    double q22 = q[2]*q[2], q23 = q[2]*q[3];
-    double q33 = q[3]*q[3];
-    b[0] = q00+q11-q22-q33;
-    b[1] = 2*(q12-q03);
-    b[2] = 2*(q13+q02);
-    b[3] = 2*(q12+q03);
-    b[4] = q00-q11+q22-q33;
-    b[5] = 2*(q23-q01);
-    b[6] = 2*(q13-q02);
-    b[7] = 2*(q23+q01);
-    b[8] = q00-q11-q22+q33;
 
     // Upload it to the device and invoke the kernel to apply forces.
 
-    buffer.upload(b);
-    int paddedNumAtoms = cu.getPaddedNumAtoms();
-    void* args2[] = {&numParticles, &paddedNumAtoms, &cu.getPosq().getDevicePointer(), &referencePos.getDevicePointer(),
-            &particles.getDevicePointer(), &buffer.getDevicePointer(), &cu.getForce().getDevicePointer()};
-    cu.executeKernel(kernel2, args2, numParticles);
-    return rmsd;
+    return 0;
 }
 
 void CudaCalcSteinhardtForceKernel::copyParametersToContext(ContextImpl& context, const SteinhardtForce& force) {
-    if (referencePos.getSize() != force.getReferencePositions().size())
-        throw OpenMMException("updateParametersInContext: The number of reference positions has changed");
+  /*if (referencePos.getSize() != force.getReferencePositions().size())
+    throw OpenMMException("updateParametersInContext: The number of reference positions has changed");*/
     int numParticles = force.getParticles().size();
     if (numParticles == 0)
         numParticles = context.getSystem().getNumParticles();
