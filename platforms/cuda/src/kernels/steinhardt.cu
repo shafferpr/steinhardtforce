@@ -26,7 +26,8 @@ __device__ real reduceValue(real value, volatile real* temp) {
  * Perform the first step of computing q6.  This is executed as a single work group.
  */
 extern "C" __global__ void computeSteinhardt(int numParticles, const real4* __restrict__ posq,
-         const int* __restrict__ particles, const real* __restrict__ cutoff, real* buffer) {
+         const int* __restrict__ particles, const real* __restrict__ cutoff, real* buffer, unsigned long long* __restrict__ forceBuffers, int paddedNumAtoms, real4 periodicBoxSize, real4 invPeriodicBoxSize,
+                 real4 periodicBoxVecX, real4 periodicBoxVecY, real4 periodicBoxVecZ) {
     extern __shared__ volatile real temp[];
 
 
@@ -39,14 +40,14 @@ extern "C" __global__ void computeSteinhardt(int numParticles, const real4* __re
     }
 
     //for (int i = 0; i < numParticles; i++)
-    for(int i=threadId.x; i<numParticles; i+=blockDim.x){
+    for(int i=threadIdx.x; i<numParticles; i+=blockDim.x){
         real3 positioni=trimTo3(posq[particles[i]]);
         //for(int j=threadId.x; j<numParticles; j+= blockDim.x)
         for(int j=0; j<numParticles; j++){
             if( j!=i ){
                 real3 positionj=trimTo3(posq[particles[j]]);
                 real3 rij= make_real3(positioni.x-positionj.x, positioni.y-positionj.y, positioni.z-positionj.z);
-                APPLY_PERIODIC_TO_DELTA(rij)
+                APPLY_PERIODIC_TO_DELTA(rij);
                 real rij_norm=pow(rij.x*rij.x + rij.y*rij.y + rij.z*rij.z,0.5);
                 real switch_ij=(1-pow((rij_norm-5)/1,6))/(1-pow((rij_norm-5)/1,12));
                 N[i] += switch_ij;
@@ -54,7 +55,7 @@ extern "C" __global__ void computeSteinhardt(int numParticles, const real4* __re
                     if (k != i){
                         real3 positionk=trimTo3(posq[particles[k]]);
                         real3 rik= make_real3(positioni.x-positionk.x, positioni.y-positionk.y, positioni.z-positionk.z);
-                        APPLY_PERIODIC_TO_DELTA(rik)
+                        APPLY_PERIODIC_TO_DELTA(rik);
                         real rik_norm=pow(rik.x*rik.x + rik.y*rik.y + rik.z*rik.z,0.5);
                         real switch_ik=(1-pow((rik_norm-5)/1,6))/(1-pow((rik_norm-5)/1,12));
                         real rdot = rij.x*rik.x + rij.y*rik.y + rij.z*rik.z;
@@ -67,14 +68,14 @@ extern "C" __global__ void computeSteinhardt(int numParticles, const real4* __re
     }
 
     real Q6_tot=0;
-    for(int i=threadId.x; i<numParticles; i++){
-        Q6_tot += pow(M[i],0.5)/N[i]
+    for(int i=threadIdx.x; i<numParticles; i++){
+        Q6_tot += pow(M[i],0.5)/N[i];
     }
 
     Q6_tot=Q6_tot*pow(4*3.14159/13,0.5)/numParticles;
     Q6_tot=reduceValue(Q6_tot,temp);
 
-    real F[numParticles][3];
+    real F[numParticles][3]; //bug here?
     for(int i=0; i< numParticles; i++){
         for(int j=0; j<2; j++){
             F[i][j]=0.0;
@@ -88,7 +89,7 @@ extern "C" __global__ void computeSteinhardt(int numParticles, const real4* __re
             if( j!=i ){
                 real3 positionj=trimTo3(posq[particles[j]]);
                 real3 rij= make_real3(positioni.x-positionj.x, positioni.y-positionj.y, positioni.z-positionj.z);
-                APPLY_PERIODIC_TO_DELTA(rij)
+                APPLY_PERIODIC_TO_DELTA(rij);
                 real rij_norm=pow(rij.x*rij.x + rij.y*rij.y + rij.z*rij.z,0.5);
                 real3 delta_rij_norm=-rij/(2*rij_norm);
                 real switch_ij_numerator=(1-pow((rij_norm-5)/1,6));
@@ -99,7 +100,7 @@ extern "C" __global__ void computeSteinhardt(int numParticles, const real4* __re
                     if(k!=i){
                         real3 positionk=trimTo3(posq[particles[k]]);
                         real3 rik= make_real3(positioni.x-positionk.x, positioni.y-positionk.y, positioni.z-positionk.z);
-                        APPLY_PERIODIC_TO_DELTA(rik)
+                        APPLY_PERIODIC_TO_DELTA(rik);
                         real rik_norm=pow(rik.x*rik.x + rik.y*rik.y + rik.z*rik.z,0.5);
                         real3 delta_rik_norm=-rik/(2*rik_norm);
                         real switch_ik_numerator=(1-pow((rik_norm-5)/1,6));
@@ -132,7 +133,7 @@ extern "C" __global__ void computeSteinhardt(int numParticles, const real4* __re
 
     // Compute the correlation matrix.
 
-    real R[3][3] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}};
+    /*real R[3][3] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}};
     real sum = 0;
     for (int i = threadIdx.x; i < numParticles; i += blockDim.x) {
         int index = particles[i];
@@ -164,7 +165,7 @@ extern "C" __global__ void computeSteinhardt(int numParticles, const real4* __re
         buffer[10] = center.x;
         buffer[11] = center.y;
         buffer[12] = center.z;
-    }
+    }*/
 }
 
 /**

@@ -30,21 +30,23 @@
  * -------------------------------------------------------------------------- */
 
 #include "CudaSteinhardtKernels.h"
-//#include "CudaKernelSources.h"
 #include "CudaSteinhardtKernelSources.h"
+#include "SteinhardtForce.h"
 #include "openmm/internal/ContextImpl.h"
 #include "openmm/cuda/CudaBondedUtilities.h"
 #include "openmm/cuda/CudaForceInfo.h"
 #include <set>
+#include <iostream>
 
 using namespace SteinhardtPlugin;
 using namespace OpenMM;
 using namespace std;
 
-class CudaCalcSteinhardtForceKernel::ForceInfo : public CudaForceInfo {
+class CudaSteinhardtForceInfo : public CudaForceInfo {
 public:
-    ForceInfo(const SteinhardtForce& force) : force(force) {
-        updateParticles();
+    CudaSteinhardtForceInfo(const SteinhardtForce& force) : force(force) {
+      updateParticles();
+      cout<<"force info updated\n";
     }
     void updateParticles() {
         particles.clear();
@@ -62,28 +64,42 @@ private:
     double cutoffDistance;
 };
 
+CudaCalcSteinhardtForceKernel::~CudaCalcSteinhardtForceKernel() {
+    cu.setAsCurrent();
+    if (params != NULL)
+        delete params;
+}
+
 void CudaCalcSteinhardtForceKernel::initialize(const System& system, const SteinhardtForce& force) {
     // Create data structures.
-
+  cu.setAsCurrent();
+  int numContexts=cu.getPlatformData().contexts.size();
+  cout <<numContexts<<"\n";
     bool useDouble = cu.getUseDoublePrecision();
     int elementSize = (useDouble ? sizeof(double) : sizeof(float));
     int numParticles = force.getParticles().size();
     cutoffDistance=force.getCutoffDistance();
+    cout <<numParticles <<"nparts\n";
     if (numParticles == 0)
         numParticles = system.getNumParticles();
-
+    cout <<"system called\n";
     particles.initialize<int>(cu, numParticles, "particles");
+    cout <<"particles initialized";
     //cutoffD.initialize<float>(cu,1,"cutoffD") //I'm not sure how this line should actually look
     buffer.initialize(cu, 13, elementSize, "buffer");
     recordParameters(force);
-    info = new ForceInfo(force);
-    cu.addForce(info);
+    //info = new CudaSteinhardtForceInfo(force);
+    cu.addForce(new CudaSteinhardtForceInfo(force));
+    //cu.addForce(new ForceInfo(force));
+    cout <<"new force added\n";
     //cutoffD.upload(cutoffDistance);
     // Create the kernels.
 
     CUmodule module = cu.createModule(CudaSteinhardtKernelSources::vectorOps+CudaSteinhardtKernelSources::steinhardt);
+    cout<<"module created\n";
     kernel1 = cu.getKernel(module, "computeSteinhardt");
-    kernel2 = cu.getKernel(module, "computeSteinhardtForces");
+    //kernel2 = cu.getKernel(module, "computeSteinhardtForces");
+    cout <<"cuda kernels loaded\n";
 }
 
 void CudaCalcSteinhardtForceKernel::recordParameters(const SteinhardtForce& force) {
@@ -117,11 +133,13 @@ double CudaCalcSteinhardtForceKernel::executeImpl(ContextImpl& context) {
 
 
 
-
+    int paddedNumAtoms = cu.getPaddedNumAtoms();
     void* args1[] = {&numParticles, &cu.getPosq().getDevicePointer(),
-            &particles.getDevicePointer(), &cutoffDistance, &buffer.getDevicePointer()};
+            &particles.getDevicePointer(), &cutoffDistance, &buffer.getDevicePointer(), &cu.getForce().getDevicePointer(),
+            cu.getPeriodicBoxSizePointer(), cu.getInvPeriodicBoxSizePointer(), cu.getPeriodicBoxVecXPointer(),
+            cu.getPeriodicBoxVecYPointer(), cu.getPeriodicBoxVecZPointer()};
     cu.executeKernel(kernel1, args1, blockSize, blockSize, blockSize*sizeof(REAL));
-
+    
 
     // Upload it to the device and invoke the kernel to apply forces.
 
@@ -140,6 +158,6 @@ void CudaCalcSteinhardtForceKernel::copyParametersToContext(ContextImpl& context
 
     // Mark that the current reordering may be invalid.
 
-    info->updateParticles();
-    cu.invalidateMolecules(info);
+    //info->updateParticles();
+    cu.invalidateMolecules();
 }

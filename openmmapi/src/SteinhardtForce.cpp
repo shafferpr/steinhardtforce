@@ -33,6 +33,7 @@
 #include "internal/SteinhardtForceImpl.h"
 #include "openmm/OpenMMException.h"
 #include "openmm/internal/AssertionUtilities.h"
+#include <iostream>
 
 using namespace SteinhardtPlugin;
 using namespace OpenMM;
@@ -44,6 +45,7 @@ SteinhardtForce::SteinhardtForce(const vector<int>& particles, double cutoffDist
 
 void SteinhardtForce::setParticles(const std::vector<int>& particles) {
     this->particles = particles;
+    cout <<particles[0];
 }
 
 void SteinhardtForce::setCutoffDistance(double distance) {
@@ -51,6 +53,7 @@ void SteinhardtForce::setCutoffDistance(double distance) {
 }
 
 void SteinhardtForce::updateParametersInContext(Context& context) {
+
     dynamic_cast<SteinhardtForceImpl&>(getImplInContext(context)).updateParametersInContext(getContextImpl(context));
 }
 

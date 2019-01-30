@@ -38,6 +38,7 @@
 #include <map>
 #include <set>
 #include <sstream>
+#include <iostream>
 
 using namespace SteinhardtPlugin;
 using namespace OpenMM;
@@ -54,9 +55,11 @@ void SteinhardtForceImpl::initialize(ContextImpl& context) {
 
     // Check for errors in the specification of particles.
     //const System& system = context.getSystem();
+
     int numParticles = context.getSystem().getNumParticles();
-    //if (owner.getReferencePositions().size() != numParticles)
-        //throw OpenMMException("SteinhardtForce: Number of reference positions does not equal number of particles in the System");
+
+    //if (owner.getParticles().size() != numParticles)
+    //throw OpenMMException("SteinhardtForce: Number of reference positions does not equal number of particles in the System");
     set<int> particles;
     for (int i : owner.getParticles()) {
         if (i < 0 || i >= numParticles) {
@@ -72,8 +75,11 @@ void SteinhardtForceImpl::initialize(ContextImpl& context) {
             throw OpenMMException(msg.str());
         }
         particles.insert(i);
+
     }
+    cout <<"trying to kernel\n";
     kernel.getAs<CalcSteinhardtForceKernel>().initialize(context.getSystem(), owner);
+    cout <<"did i kernel\n";
 }
 
 double SteinhardtForceImpl::calcForcesAndEnergy(ContextImpl& context, bool includeForces, bool includeEnergy, int groups) {

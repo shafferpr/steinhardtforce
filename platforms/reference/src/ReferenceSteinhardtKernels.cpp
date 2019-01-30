@@ -35,6 +35,7 @@
 #include "openmm/internal/ContextImpl.h"
 #include "openmm/reference/RealVec.h"
 #include "openmm/reference/ReferencePlatform.h"
+#include <iostream>
 
 using namespace SteinhardtPlugin;
 using namespace OpenMM;
@@ -51,9 +52,13 @@ static vector<RealVec>& extractForces(ContextImpl& context) {
 }
 
 void ReferenceCalcSteinhardtForceKernel::initialize(const System& system, const SteinhardtForce& force) {
-
+  
+  cout << "initializing reference\n";
     particles = force.getParticles();
+    cout << "got particles\n";
+    cout << particles[0] << "\n";
     cutoffDistance=force.getCutoffDistance();
+    cout <<"reference initialized\n";
 }
 
 double ReferenceCalcSteinhardtForceKernel::execute(ContextImpl& context, bool includeForces, bool includeEnergy) {

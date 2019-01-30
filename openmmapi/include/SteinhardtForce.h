@@ -80,7 +80,7 @@ public:
     /**
      * Get the cutoff distance used in computing the steinhardt parameter
      */
-    const float& getCutoffDistance() const {
+    const float getCutoffDistance() const {
         return cutoffDistance;
     }
     /**
@@ -108,7 +108,7 @@ public:
      * @returns true if force uses PBC and false otherwise
      */
     bool usesPeriodicBoundaryConditions() const {
-        return false;
+        return true;
     }
 protected:
     OpenMM::ForceImpl* createImpl() const;
