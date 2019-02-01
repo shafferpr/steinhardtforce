@@ -81,46 +81,62 @@ void CudaCalcSteinhardtForceKernel::initialize(const System& system, const Stein
     bool useDouble = cu.getUseDoublePrecision();
     int elementSize = (useDouble ? sizeof(double) : sizeof(float));
     int numParticles = force.getParticles().size();
+    double cutoffDistance=force.getCutoffDistance();
     map<string, string> replacements;
-    cout <<numParticles <<"nparts\n";
+
     if (numParticles == 0)
         numParticles = system.getNumParticles();
-    cout <<"system called\n";
+
     particles.initialize<int>(cu, numParticles, "particles");
     M.initialize(cu,numParticles,elementSize,"M");
     N.initialize(cu,numParticles,elementSize,"N");
-    F.initialize(cu,numParticles,elementSize*3,"F");
+    F.initialize(cu,3*numParticles,elementSize,"F");
+
     replacements["CUTOFF"]=cu.doubleToString(cutoffDistance);
-    cout <<"particles initialized";
-    //cutoffD.initialize<float>(cu,1,"cutoffD") //I'm not sure how this line should actually look
+
+
     buffer.initialize(cu, 13, elementSize, "buffer");
     recordParameters(force);
-    //info = new CudaSteinhardtForceInfo(force);
+
     cu.addForce(new CudaSteinhardtForceInfo(force));
-    //cu.addForce(new ForceInfo(force));
-    cout <<"new force added\n";
-    //cutoffD.upload(cutoffDistance);
-    // Create the kernels.
+
+
+
 
     CUmodule module = cu.createModule(CudaSteinhardtKernelSources::vectorOps+CudaSteinhardtKernelSources::steinhardt,replacements);
-    cout<<"module created\n";
+
     kernel1 = cu.getKernel(module, "computeSteinhardt");
     //kernel2 = cu.getKernel(module, "computeSteinhardtForces");
-    cout <<"cuda kernels loaded\n";
+
 }
 
 void CudaCalcSteinhardtForceKernel::recordParameters(const SteinhardtForce& force) {
-    // Record the parameters and center the reference positions.
-
+    int numParticles = force.getParticles().size();
     vector<int> particleVec = force.getParticles();
     if (particleVec.size() == 0)
         for (int i = 0; i < cu.getNumAtoms(); i++)
             particleVec.push_back(i);
+    particles.upload(particleVec);
 
-
+    vector<double> Mvec;
+    for (int i=0; i < numParticles; i++){
+      Mvec.push_back(0.0);
+    }
+    M.upload(Mvec);
+    N.upload(Mvec);
+    vector<double> Fvec;
+    for(int i=0; i< numParticles*3; i++){
+      Fvec.push_back(0.0);
+    }
+    F.upload(Fvec);
+    vector<double> bvec;
+    for(int i=0; i<13; i++){
+      bvec.push_back(0.0);
+    }
+    buffer.upload(bvec);
     // Upload them to the device.
 
-    particles.upload(particleVec);
+
 
 
 }
@@ -134,8 +150,7 @@ double CudaCalcSteinhardtForceKernel::execute(ContextImpl& context, bool include
 template <class REAL>
 double CudaCalcSteinhardtForceKernel::executeImpl(ContextImpl& context) {
     // Execute the first kernel.
-    cout <<"trying to execute\n";
-    cout <<sizeof(REAL)<<"\n";
+
     int numParticles = particles.getSize();
     int blockSize = 256;
 
@@ -143,14 +158,14 @@ double CudaCalcSteinhardtForceKernel::executeImpl(ContextImpl& context) {
 
     int paddedNumAtoms = cu.getPaddedNumAtoms();
     void* args1[] = {&numParticles, &cu.getPosq().getDevicePointer(),
-            &particles.getDevicePointer(), &buffer.getDevicePointer(), &cu.getForce().getDevicePointer(),
+            &particles.getDevicePointer(), &buffer.getDevicePointer(), &cu.getForce().getDevicePointer(), &paddedNumAtoms,
             cu.getPeriodicBoxSizePointer(), cu.getInvPeriodicBoxSizePointer(), cu.getPeriodicBoxVecXPointer(),
 		     cu.getPeriodicBoxVecYPointer(), cu.getPeriodicBoxVecZPointer(), &M.getDevicePointer(), &N.getDevicePointer(), &F.getDevicePointer()};
-    cout<<"args set\n";
+
     cu.executeKernel(kernel1, args1, blockSize, blockSize, blockSize*sizeof(REAL));
 
 
-    // Upload it to the device and invoke the kernel to apply forces.
+
 
     return 0;
 }
@@ -158,11 +173,13 @@ double CudaCalcSteinhardtForceKernel::executeImpl(ContextImpl& context) {
 void CudaCalcSteinhardtForceKernel::copyParametersToContext(ContextImpl& context, const SteinhardtForce& force) {
   /*if (referencePos.getSize() != force.getReferencePositions().size())
     throw OpenMMException("updateParametersInContext: The number of reference positions has changed");*/
+
     int numParticles = force.getParticles().size();
     if (numParticles == 0)
         numParticles = context.getSystem().getNumParticles();
     if (numParticles != particles.getSize())
         particles.resize(numParticles);
+
     recordParameters(force);
 
     // Mark that the current reordering may be invalid.

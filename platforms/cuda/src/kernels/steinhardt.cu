@@ -31,11 +31,11 @@ extern "C" __global__ void computeSteinhardt(int numParticles, const real4* __re
     extern __shared__ volatile real temp[];
 
 
-    printf("tyring to set M and N\n");
+
     for(int i=0; i < numParticles; i++){
         M[i]=0;
         N[i]=0;
-        printf("%f\n", M[i]);
+
     }
 
     //for (int i = 0; i < numParticles; i++)
