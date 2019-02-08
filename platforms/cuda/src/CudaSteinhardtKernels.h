@@ -92,7 +92,7 @@ namespace SteinhardtPlugin {
       OpenMM::CudaArray M;
       OpenMM::CudaArray N;
       OpenMM::CudaArray F;
-      CUfunction kernel1, kernel2;
+      CUfunction kernel1, kernel2, kernel3;
   };
 
 

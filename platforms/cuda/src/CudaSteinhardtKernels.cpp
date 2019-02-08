@@ -39,6 +39,7 @@
 #include <thrust/device_vector.h>
 #include <set>
 #include <iostream>
+#include <cmath>
 
 using namespace SteinhardtPlugin;
 using namespace OpenMM;
@@ -106,7 +107,8 @@ void CudaCalcSteinhardtForceKernel::initialize(const System& system, const Stein
     CUmodule module = cu.createModule(CudaSteinhardtKernelSources::vectorOps+CudaSteinhardtKernelSources::steinhardt,replacements);
 
     kernel1 = cu.getKernel(module, "computeSteinhardt");
-    //kernel2 = cu.getKernel(module, "computeSteinhardtForces");
+    kernel2 = cu.getKernel(module, "computeSteinhardtForces");
+    kernel3 = cu.getKernel(module, "applySteinhardtForces");
 
 }
 
@@ -137,8 +139,6 @@ void CudaCalcSteinhardtForceKernel::recordParameters(const SteinhardtForce& forc
     // Upload them to the device.
 
 
-
-
 }
 
 double CudaCalcSteinhardtForceKernel::execute(ContextImpl& context, bool includeForces, bool includeEnergy) {
@@ -152,8 +152,7 @@ double CudaCalcSteinhardtForceKernel::executeImpl(ContextImpl& context) {
     // Execute the first kernel.
 
     int numParticles = particles.getSize();
-    int blockSize = 256;
-
+    int blockSize = 512;
 
 
     int paddedNumAtoms = cu.getPaddedNumAtoms();
@@ -163,11 +162,29 @@ double CudaCalcSteinhardtForceKernel::executeImpl(ContextImpl& context) {
 		     cu.getPeriodicBoxVecYPointer(), cu.getPeriodicBoxVecZPointer(), &M.getDevicePointer(), &N.getDevicePointer(), &F.getDevicePointer()};
 
     cu.executeKernel(kernel1, args1, blockSize, blockSize, blockSize*sizeof(REAL));
+    vector<REAL> Mvec;
+    M.download(Mvec);
+    vector<REAL> Nvec;
+    N.download(Nvec);
 
+    REAL Q_tot=0;
+    for(int i=0; i<numParticles; i++){
+        Q_tot += pow(Mvec[i],0.5)/Nvec[i];
+    }
+    Q_tot=Q_tot*pow(4*3.14159/13,0.5)/numParticles;
+    cout <<Q_tot<<"\n";
+    void* args2[] = {&numParticles, &cu.getPosq().getDevicePointer(),
+            &particles.getDevicePointer(), &buffer.getDevicePointer(), &cu.getForce().getDevicePointer(), &paddedNumAtoms,
+            cu.getPeriodicBoxSizePointer(), cu.getInvPeriodicBoxSizePointer(), cu.getPeriodicBoxVecXPointer(),
+		     cu.getPeriodicBoxVecYPointer(), cu.getPeriodicBoxVecZPointer(), &M.getDevicePointer(), &N.getDevicePointer(), &F.getDevicePointer(), &Q_tot};
 
+    
+    cu.executeKernel(kernel2, args2, blockSize, blockSize, blockSize*sizeof(REAL));
 
-
-    return 0;
+    void* args3[] = {&numParticles, &particles.getDevicePointer(), &cu.getForce().getDevicePointer(), &paddedNumAtoms, &F.getDevicePointer()};
+    
+    cu.executeKernel(kernel3, args3, blockSize, blockSize, blockSize*sizeof(REAL));
+    return Q_tot;
 }
 
 void CudaCalcSteinhardtForceKernel::copyParametersToContext(ContextImpl& context, const SteinhardtForce& force) {
