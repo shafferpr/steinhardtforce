@@ -72,14 +72,14 @@ extern "C" __global__ void computeSteinhardtForces(int numParticles, const real4
 	
 	real3 Ficomp=make_real3(0);
 	real M_prefactor=-1/(2*N[i]*pow(M[i],0.5));
-	printf("%f\n", F[3*i]);
+
         for(int j=0; j<numParticles; j++){
             if( j!=i ){
                 real3 positionj=trimTo3(posq[particles[j]]);
                 real3 rij= make_real3(positioni.x-positionj.x, positioni.y-positionj.y, positioni.z-positionj.z);
                 APPLY_PERIODIC_TO_DELTA(rij);
                 real rij_norm=pow(rij.x*rij.x + rij.y*rij.y + rij.z*rij.z,0.5);
-		if(rij_norm < 1.6*CUTOFF){
+		if(rij_norm < 2.0*CUTOFF){
                 real3 delta_rij_norm=rij/(2*rij_norm);
 		real rij_pow6=pow((rij_norm-CUTOFF)/1,6);
                 real switch_ij_numerator=(1-rij_pow6);
@@ -95,7 +95,7 @@ extern "C" __global__ void computeSteinhardtForces(int numParticles, const real4
                         APPLY_PERIODIC_TO_DELTA(rik);
 			
                         real rik_norm=pow(rik.x*rik.x + rik.y*rik.y + rik.z*rik.z,0.5);
-			if(rik_norm < 1.6*CUTOFF){
+			if(rik_norm < 2.0*CUTOFF){
                         real3 delta_rik_norm=rik/(2*rik_norm);
 			real rik_pow6=pow((rik_norm-CUTOFF)/1,6);
                         real switch_ik_numerator=(1-rik_pow6);

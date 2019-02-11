@@ -65,7 +65,7 @@ public:
 private:
     const SteinhardtForce& force;
     set<int> particles;
-    double cutoffDistance;
+    float cutoffDistance;
 };
 
 CudaCalcSteinhardtForceKernel::~CudaCalcSteinhardtForceKernel() {
@@ -82,7 +82,7 @@ void CudaCalcSteinhardtForceKernel::initialize(const System& system, const Stein
     bool useDouble = cu.getUseDoublePrecision();
     int elementSize = (useDouble ? sizeof(double) : sizeof(float));
     int numParticles = force.getParticles().size();
-    double cutoffDistance=force.getCutoffDistance();
+    float cutoffDistance=force.getCutoffDistance();
     map<string, string> replacements;
 
     if (numParticles == 0)
@@ -120,18 +120,18 @@ void CudaCalcSteinhardtForceKernel::recordParameters(const SteinhardtForce& forc
             particleVec.push_back(i);
     particles.upload(particleVec);
 
-    vector<double> Mvec;
+    vector<float> Mvec;
     for (int i=0; i < numParticles; i++){
       Mvec.push_back(0.0);
     }
     M.upload(Mvec);
     N.upload(Mvec);
-    vector<double> Fvec;
+    vector<float> Fvec;
     for(int i=0; i< numParticles*3; i++){
       Fvec.push_back(0.0);
     }
     F.upload(Fvec);
-    vector<double> bvec;
+    vector<float> bvec;
     for(int i=0; i<13; i++){
       bvec.push_back(0.0);
     }
@@ -142,8 +142,9 @@ void CudaCalcSteinhardtForceKernel::recordParameters(const SteinhardtForce& forc
 }
 
 double CudaCalcSteinhardtForceKernel::execute(ContextImpl& context, bool includeForces, bool includeEnergy) {
-    if (cu.getUseDoublePrecision())
-        return executeImpl<double>(context);
+
+  //if (cu.getUseDoublePrecision())
+  //return executeImpl<double>(context);
     return executeImpl<float>(context);
 }
 

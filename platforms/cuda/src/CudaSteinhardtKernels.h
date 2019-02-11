@@ -85,8 +85,8 @@ namespace SteinhardtPlugin {
       const OpenMM::System& system;
       OpenMM::CudaArray* params;
       ForceInfo* info;
-      double cutoffDistance;
-      double sumNormRef;
+      float cutoffDistance;
+
       OpenMM::CudaArray particles;
       OpenMM::CudaArray buffer;
       OpenMM::CudaArray M;
