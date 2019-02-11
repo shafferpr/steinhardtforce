@@ -172,7 +172,7 @@ double CudaCalcSteinhardtForceKernel::executeImpl(ContextImpl& context) {
         Q_tot += pow(Mvec[i],0.5)/Nvec[i];
     }
     Q_tot=Q_tot*pow(4*3.14159/13,0.5)/numParticles;
-    cout <<Q_tot<<"\n";
+    cout <<Q_tot<<" qtot\n";
     void* args2[] = {&numParticles, &cu.getPosq().getDevicePointer(),
             &particles.getDevicePointer(), &buffer.getDevicePointer(), &cu.getForce().getDevicePointer(), &paddedNumAtoms,
             cu.getPeriodicBoxSizePointer(), cu.getInvPeriodicBoxSizePointer(), cu.getPeriodicBoxVecXPointer(),
