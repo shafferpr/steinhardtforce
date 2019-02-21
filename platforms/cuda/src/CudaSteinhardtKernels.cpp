@@ -66,6 +66,7 @@ private:
     const SteinhardtForce& force;
     set<int> particles;
     float cutoffDistance;
+    int steinhardtOrder;
 };
 
 CudaCalcSteinhardtForceKernel::~CudaCalcSteinhardtForceKernel() {
@@ -83,6 +84,7 @@ void CudaCalcSteinhardtForceKernel::initialize(const System& system, const Stein
     int elementSize = (useDouble ? sizeof(double) : sizeof(float));
     int numParticles = force.getParticles().size();
     float cutoffDistance=force.getCutoffDistance();
+    int steinhardtOrder=force.getSteinhardtOrder();
     map<string, string> replacements;
 
     if (numParticles == 0)
@@ -94,6 +96,7 @@ void CudaCalcSteinhardtForceKernel::initialize(const System& system, const Stein
     F.initialize(cu,3*numParticles,elementSize,"F");
 
     replacements["CUTOFF"]=cu.doubleToString(cutoffDistance);
+    replacements["STEINHARDT_ORDER"]=cu.intToString(steinhardtOrder);
 
 
     buffer.initialize(cu, 13, elementSize, "buffer");
@@ -153,7 +156,7 @@ double CudaCalcSteinhardtForceKernel::executeImpl(ContextImpl& context) {
     // Execute the first kernel.
 
     int numParticles = particles.getSize();
-    int blockSize = 512;
+    int blockSize = 256;
 
 
     int paddedNumAtoms = cu.getPaddedNumAtoms();
@@ -172,18 +175,18 @@ double CudaCalcSteinhardtForceKernel::executeImpl(ContextImpl& context) {
     for(int i=0; i<numParticles; i++){
         Q_tot += pow(Mvec[i],0.5)/Nvec[i];
     }
-    Q_tot=Q_tot*pow(4*3.14159/13,0.5)/numParticles;
+    Q_tot=Q_tot*pow(4*3.14159/13,0.5)/numParticles; //this needs to be adjusted for 2l+1 in the denominator
     //cout <<Q_tot<<" qtot\n";
     void* args2[] = {&numParticles, &cu.getPosq().getDevicePointer(),
             &particles.getDevicePointer(), &buffer.getDevicePointer(), &cu.getForce().getDevicePointer(), &paddedNumAtoms,
             cu.getPeriodicBoxSizePointer(), cu.getInvPeriodicBoxSizePointer(), cu.getPeriodicBoxVecXPointer(),
 		     cu.getPeriodicBoxVecYPointer(), cu.getPeriodicBoxVecZPointer(), &M.getDevicePointer(), &N.getDevicePointer(), &F.getDevicePointer(), &Q_tot};
 
-    
+
     cu.executeKernel(kernel2, args2, blockSize, blockSize, blockSize*sizeof(REAL));
 
     void* args3[] = {&numParticles, &particles.getDevicePointer(), &cu.getForce().getDevicePointer(), &paddedNumAtoms, &F.getDevicePointer()};
-    
+
     cu.executeKernel(kernel3, args3, blockSize, blockSize, blockSize*sizeof(REAL));
     return Q_tot;
 }

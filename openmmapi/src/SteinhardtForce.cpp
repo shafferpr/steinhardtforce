@@ -39,8 +39,8 @@ using namespace SteinhardtPlugin;
 using namespace OpenMM;
 using namespace std;
 
-SteinhardtForce::SteinhardtForce(const vector<int>& particles, double cutoffDistance) :
-        particles(particles), cutoffDistance(cutoffDistance) {
+SteinhardtForce::SteinhardtForce(const vector<int>& particles, double cutoffDistance, int steinhardtOrder) :
+        particles(particles), cutoffDistance(cutoffDistance), steinhardtOrder(steinhardtOrder) {
 }
 
 void SteinhardtForce::setParticles(const std::vector<int>& particles) {
@@ -50,6 +50,10 @@ void SteinhardtForce::setParticles(const std::vector<int>& particles) {
 
 void SteinhardtForce::setCutoffDistance(double distance) {
     cutoffDistance = distance;
+}
+
+void SteinhardtForce::setSteinhardtOrder(int order){
+  steinhardtOrder=order;
 }
 
 void SteinhardtForce::updateParametersInContext(Context& context) {

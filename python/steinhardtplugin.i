@@ -45,6 +45,7 @@ public:
     void setParticles(std::vector<int> particles);
     void setCutoffDistance(double distance);
     void updateParametersInContext(OpenMM::Context& context);
+    void setSteinhardtOrder(int order);
 
 
 };

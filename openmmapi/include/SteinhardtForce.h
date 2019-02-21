@@ -67,7 +67,7 @@ public:
      *                            particles in the system will be used.
      */
     explicit SteinhardtForce(const std::vector<int>& particles=std::vector<int>(),
-                       double cutoffDistance=5);
+                       double cutoffDistance=2.5, int steinhardtOrder=6);
 
     /**
      * Get the indices of the particles to use when computing the Steinhardt parameter
@@ -82,6 +82,9 @@ public:
      */
     const float getCutoffDistance() const {
         return cutoffDistance;
+    }
+    const int getSteinhardtOrder() const{
+        return steinhardtOrder;
     }
     /**
      * Set the indices of the particles to use when computing the RMSD.  If this
@@ -100,6 +103,8 @@ public:
      * and setParticles() to modify this object's parameters, then call updateParametersInContext()
      * to copy them over to the Context.
      */
+     void setSteinhardtOrder(int order);
+
     void updateParametersInContext(OpenMM::Context& context);
     /**
      * Returns whether or not this force makes use of periodic boundary
@@ -115,6 +120,7 @@ protected:
 private:
     std::vector<int> particles;
     double cutoffDistance;
+    int steinhardtOrder;
 };
 
 } // namespace OpenMM

@@ -86,6 +86,7 @@ namespace SteinhardtPlugin {
       OpenMM::CudaArray* params;
       ForceInfo* info;
       float cutoffDistance;
+      int steinhardtOrder;
 
       OpenMM::CudaArray particles;
       OpenMM::CudaArray buffer;
