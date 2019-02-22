@@ -197,9 +197,7 @@ extern "C" __global__ void applySteinhardtForces(int numParticles, const int* __
     for (int i = blockDim.x*blockIdx.x+threadIdx.x; i < numParticles; i += blockDim.x*gridDim.x) {
         int index = particles[i];
 				real3 force=make_real3(F[3*i],F[3*i+1],F[3*i+2]);
-				if(i==0){
-					printf("hi %f %f %f\n", F[3*i], F[3*i+1], F[3*i+2]);
-				}
+
         atomicAdd(&forceBuffers[index], static_cast<unsigned long long>((long long) (force.x*0x100000000)));
         atomicAdd(&forceBuffers[index+paddedNumAtoms], static_cast<unsigned long long>((long long) (force.y*0x100000000)));
         atomicAdd(&forceBuffers[index+2*paddedNumAtoms], static_cast<unsigned long long>((long long) (force.z*0x100000000)));

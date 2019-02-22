@@ -52,6 +52,8 @@ void SteinhardtForceProxy::serialize(const void* object, SerializationNode& node
 
     SerializationNode& cutoffDistanceNode = node.createChildNode("CutoffDistance");
     cutoffDistanceNode.setDoubleProperty("cutoffDistance",force.getCutoffDistance());
+    SerializationNode& steinhardtOrderNode = node.createChildNode("SteinhardtOrder");
+    steinhardtOrderNode.setIntProperty("steinhardtOrder",force.getSteinhardtOrder());
 }
 
 void* SteinhardtForceProxy::deserialize(const SerializationNode& node) const {
@@ -62,16 +64,18 @@ void* SteinhardtForceProxy::deserialize(const SerializationNode& node) const {
 
         vector<int> particles;
 	double cutoffDistance;
+  int steinhardtOrder;
         for (auto& particle : node.getChildNode("Particles").getChildren())
             particles.push_back(particle.getIntProperty("index"));
-	cutoffDistance=node.getChildNode("CutoffDistance").getDoubleProperty("cutoffDistance");
-        force = new SteinhardtForce(particles, cutoffDistance);
+	      cutoffDistance=node.getChildNode("CutoffDistance").getDoubleProperty("cutoffDistance");
+        steinhardtOrder=node.getChildNode("SteinhardtOrder").getIntProperty("steinhardtOrder");
+        force = new SteinhardtForce(particles, cutoffDistance, steinhardtOrder);
         force->setForceGroup(node.getIntProperty("forceGroup", 0));
         return force;
-	
+
     }
     catch (...) {
-      if (force != NULL)      
+      if (force != NULL)
 	  delete force;
       throw;
     }

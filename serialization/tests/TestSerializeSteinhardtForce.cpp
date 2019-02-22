@@ -51,7 +51,8 @@ void testSerialization() {
         particles.push_back(i*i);
 
     double cutoffDistance=5;
-    SteinhardtForce force(particles,cutoffDistance);    
+    int steinhardtOrder=4;
+    SteinhardtForce force(particles,cutoffDistance,steinhardtOrder);
     // Serialize and then deserialize it.
 
     stringstream buffer;
@@ -66,7 +67,7 @@ void testSerialization() {
     for (int i = 0; i < force.getParticles().size(); i++)
         ASSERT_EQUAL(force.getParticles()[i], force2.getParticles()[i]);
     ASSERT_EQUAL(force.getCutoffDistance(),force2.getCutoffDistance());
-    
+
 }
 
 int main() {

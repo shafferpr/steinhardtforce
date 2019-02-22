@@ -45,7 +45,7 @@ SteinhardtForce::SteinhardtForce(const vector<int>& particles, double cutoffDist
 
 void SteinhardtForce::setParticles(const std::vector<int>& particles) {
     this->particles = particles;
-    cout <<particles[0];
+
 }
 
 void SteinhardtForce::setCutoffDistance(double distance) {
@@ -53,7 +53,8 @@ void SteinhardtForce::setCutoffDistance(double distance) {
 }
 
 void SteinhardtForce::setSteinhardtOrder(int order){
-  steinhardtOrder=order;
+  steinhardtOrder = order;
+  cout << order <<"\n";
 }
 
 void SteinhardtForce::updateParametersInContext(Context& context) {
