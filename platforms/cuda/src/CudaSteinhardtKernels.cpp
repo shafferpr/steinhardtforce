@@ -98,12 +98,10 @@ void CudaCalcSteinhardtForceKernel::initialize(const System& system, const Stein
     replacements["CUTOFF"]=cu.doubleToString(cutoffDistance);
     replacements["STEINHARDT_ORDER"]=cu.intToString(steinhardtOrder);
 
-
     buffer.initialize(cu, 13, elementSize, "buffer");
     recordParameters(force);
 
     cu.addForce(new CudaSteinhardtForceInfo(force));
-
 
 
 
@@ -117,7 +115,9 @@ void CudaCalcSteinhardtForceKernel::initialize(const System& system, const Stein
 
 void CudaCalcSteinhardtForceKernel::recordParameters(const SteinhardtForce& force) {
     int numParticles = force.getParticles().size();
+    int steinhardtOrder=force.getSteinhardtOrder();
     vector<int> particleVec = force.getParticles();
+    
     if (particleVec.size() == 0)
         for (int i = 0; i < cu.getNumAtoms(); i++)
             particleVec.push_back(i);
@@ -158,7 +158,7 @@ double CudaCalcSteinhardtForceKernel::executeImpl(ContextImpl& context) {
     int numParticles = particles.getSize();
     int blockSize = 256;
 
-
+    
     int paddedNumAtoms = cu.getPaddedNumAtoms();
     void* args1[] = {&numParticles, &cu.getPosq().getDevicePointer(),
             &particles.getDevicePointer(), &buffer.getDevicePointer(), &cu.getForce().getDevicePointer(), &paddedNumAtoms,
@@ -170,13 +170,13 @@ double CudaCalcSteinhardtForceKernel::executeImpl(ContextImpl& context) {
     M.download(Mvec);
     vector<REAL> Nvec;
     N.download(Nvec);
-
+    
     REAL Q_tot=0;
     for(int i=0; i<numParticles; i++){
         Q_tot += pow(Mvec[i],0.5)/Nvec[i];
     }
-    Q_tot=Q_tot*pow(4*3.14159/13,0.5)/numParticles; //this needs to be adjusted for 2l+1 in the denominator
-
+    Q_tot=Q_tot*pow(4*3.14159/(2*steinhardtOrder+1),0.5)/numParticles;
+    
     void* args2[] = {&numParticles, &cu.getPosq().getDevicePointer(),
             &particles.getDevicePointer(), &buffer.getDevicePointer(), &cu.getForce().getDevicePointer(), &paddedNumAtoms,
             cu.getPeriodicBoxSizePointer(), cu.getInvPeriodicBoxSizePointer(), cu.getPeriodicBoxVecXPointer(),

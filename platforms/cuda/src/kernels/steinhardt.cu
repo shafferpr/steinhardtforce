@@ -27,21 +27,33 @@
 __device__ real legendre(real rdot,int steinhardt_order){
 	 real result=0;
 
-	 if(steinhardt_order == 6)
-	 	result= (231*powf(rdot,6.0)-315*powf(rdot,4.0)+105*powf(rdot,2.0)-5)/16;
-	 else if (steinhardt_order == 4)
-	 	result=(35*powf(rdot,4.0)-30*powf(rdot,2.0)+3)/8;
-
+	 if(steinhardt_order == 6){
+	        real pow2=rdot*rdot;
+		real pow4=pow2*pow2;
+		real pow6=pow4*pow2;
+	 	result= (231*pow6-315*pow4+105*pow2-5)/16;
+	
+		}
+	 else if (steinhardt_order == 4){
+	      	real pow2=rdot*rdot;
+		real pow4=pow2*pow2;
+	 	result=(35*pow4-30*pow2+3)/8;
+	}
 	 return result;
 }
 
 __device__ real legendre_deriv(real rdot, int steinhardt_order){
 	 real result=0;
-	 if(steinhardt_order==6)
-	 	result=(1386*powf(rdot,5.0)-1260*powf(rdot,3)+210*rdot)/16;
-	 else if(steinhardt_order == 4)
-	 	result=(140*powf(rdot,3.0)-60*rdot)/8;
-
+	 if(steinhardt_order==6){
+		real pow3=rdot*rdot*rdot;
+		real pow5=pow3*rdot*rdot;
+		
+	 	result=(1386*pow5-1260*pow3+210*rdot)/16;
+		}
+	 else if(steinhardt_order == 4){
+	      	real pow3=rdot*rdot*rdot;
+	 	result=(140*pow3-60*rdot)/8;
+		}
 	 return result;
 }
 
@@ -86,6 +98,7 @@ extern "C" __global__ void computeSteinhardt(int numParticles, const real4* __re
 									real P6=legendre(rdot, STEINHARDT_ORDER);
 									//M[i] += P6*switch_ik*switch_ij;
 									sumM += P6*switch_ik*switch_ij;
+									//printf("%d %d %d M %f p %f sik %f sij %f rd %f\n", index, j, k, sumM, P6, switch_ik, switch_ij, rdot);
 								}
 							}
 						}
@@ -94,6 +107,7 @@ extern "C" __global__ void computeSteinhardt(int numParticles, const real4* __re
 			}
 			M[index]=sumM;
 			N[index]=sumN;
+			//printf("%f %f\n", sumM,sumN);
 			index += blockDim.x*gridDim.x;
 		}
 
@@ -108,7 +122,7 @@ extern "C" __global__ void computeSteinhardtForces(int numParticles, const real4
 	real4 periodicBoxVecX, real4 periodicBoxVecY, real4 periodicBoxVecZ,real* __restrict__ M, real* __restrict__ N, real* F, real Q_tot) {
 		extern __shared__ volatile real temp[];
 		unsigned int i = blockIdx.x*blockDim.x+threadIdx.x;
-		real prefactor=sqrtf(4*3.14159/13)/numParticles;
+		real prefactor=sqrtf(4*3.14159/(2*STEINHARDT_ORDER+1))/numParticles;
 
 
 		while(i < numParticles){
@@ -117,8 +131,9 @@ extern "C" __global__ void computeSteinhardtForces(int numParticles, const real4
 
 			real3 Ficomp=make_real3(0);
       real3 Ficomp2=make_real3(0);
-			real M_prefactor=sqrtf(4*3.14159/(13*M[i]))/(2*numParticles*N[i]);
-			real N_prefactor=-sqrtf(M[i]*4*3.14159/13)/(N[i]*N[i]*numParticles);
+			real M_prefactor=-sqrtf(4*3.14159/((2*STEINHARDT_ORDER+1)*M[i]))/(2*numParticles*N[i]);
+			real N_prefactor=-sqrtf(M[i]*4*3.14159/(2*STEINHARDT_ORDER+1))/(N[i]*N[i]*numParticles);
+			//printf("%f %f %f %f\n",M_prefactor,N_prefactor, M[i], N[i]);
 
 			for(int j=0; j<numParticles; j++){
         real3 Fjcomp2=make_real3(0);
@@ -133,11 +148,11 @@ extern "C" __global__ void computeSteinhardtForces(int numParticles, const real4
 
 						real sech_ij=1/coshf((rij_norm-CUTOFF)/0.2);
 						real switch_ij = (1-tanhf((rij_norm-CUTOFF)/0.2));
-						real delta_switch_ij = -5*powf(sech_ij,2.0);
+						real delta_switch_ij = -5*sech_ij*sech_ij;
 
 						real3 Fjcomp=make_real3(0);
-            Fjcomp2 = -delta_switch_ij*delta_rij_norm;
-            Ficomp2 += delta_switch_ij*delta_rij_norm;
+						Fjcomp2 = -delta_switch_ij*delta_rij_norm;
+						Ficomp2 += delta_switch_ij*delta_rij_norm;
 
 						for(int k=0; k<numParticles; k++){
 							if(k!=i){
@@ -151,7 +166,7 @@ extern "C" __global__ void computeSteinhardtForces(int numParticles, const real4
 
 									real switch_ik = (1-tanhf((rik_norm-CUTOFF)/0.2));
 									real sech_ik=1/coshf((rik_norm-CUTOFF)/0.2);
-									real delta_switch_ik = -5*powf(sech_ik,2.0);
+									real delta_switch_ik = -5*sech_ik*sech_ik;
 
 									real rdot = (rij.x*rik.x + rij.y*rik.y + rij.z*rik.z)/(rij_norm*rik_norm);
 
@@ -165,25 +180,26 @@ extern "C" __global__ void computeSteinhardtForces(int numParticles, const real4
 									Ficomp += delta_switch_ij*switch_ik*P6*delta_rij_norm + switch_ij*delta_switch_ik*P6*delta_rik_norm + switch_ij*switch_ik*delta_P6*delta_rijik;
 									Fjcomp += -delta_switch_ij*switch_ik*P6*delta_rij_norm +switch_ij*switch_ik*delta_P6*delta_rijj;
 									real3 Fkcomp = -switch_ij*delta_switch_ik*P6*delta_rik_norm + switch_ij*switch_ik*delta_P6*delta_rikk;
+									//printf("%f %f %f\n", Fkcomp.x, Fkcomp.y, Fkcomp.z);
 
-									atomicAdd(&F[3*k],-Fkcomp.x/M_prefactor);
-									atomicAdd(&F[3*k+1],-Fkcomp.y/M_prefactor);
-									atomicAdd(&F[3*k+2],-Fkcomp.z/M_prefactor);
+									atomicAdd(&F[3*k],-Fkcomp.x*M_prefactor);
+									atomicAdd(&F[3*k+1],-Fkcomp.y*M_prefactor);
+									atomicAdd(&F[3*k+2],-Fkcomp.z*M_prefactor);
 
 								}
 							}
 						}
-
-						atomicAdd(&F[3*j],-Fjcomp.x/M_prefactor-Fjcomp2.x/N_prefactor);
-						atomicAdd(&F[3*j+1],-Fjcomp.y/M_prefactor-Fjcomp2.y/N_prefactor);
-						atomicAdd(&F[3*j+2],-Fjcomp.z/M_prefactor-Fjcomp2.z/N_prefactor);
+						//printf("%f %f %f %f %f %f\n", Fjcomp.x, Fjcomp.y, Fjcomp.z, Fjcomp2.x, Fjcomp2.y, Fjcomp2.z);
+						atomicAdd(&F[3*j],-Fjcomp.x*M_prefactor-Fjcomp2.x*N_prefactor);
+						atomicAdd(&F[3*j+1],-Fjcomp.y*M_prefactor-Fjcomp2.y*N_prefactor);
+						atomicAdd(&F[3*j+2],-Fjcomp.z*M_prefactor-Fjcomp2.z*N_prefactor);
 					}
 				}
 			}
-
-			atomicAdd(&F[3*i],-Ficomp.x/M_prefactor-Ficomp2.x/N_prefactor);
-			atomicAdd(&F[3*i+1],-Ficomp.y/M_prefactor-Ficomp2.y/N_prefactor);
-			atomicAdd(&F[3*i+2],-Ficomp.z/M_prefactor-Ficomp2.z/N_prefactor);
+			//printf("i %f %f %f\n", Ficomp.x, Ficomp.y, Ficomp.z);
+			atomicAdd(&F[3*i],-Ficomp.x*M_prefactor-Ficomp2.x*N_prefactor);
+			atomicAdd(&F[3*i+1],-Ficomp.y*M_prefactor-Ficomp2.y*N_prefactor);
+			atomicAdd(&F[3*i+2],-Ficomp.z*M_prefactor-Ficomp2.z*N_prefactor);
 			i += blockDim.x*gridDim.x;
 
 		}
